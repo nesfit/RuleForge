@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "ruleforge"
+version = "0.1.0"
+description = "ML-Based Password-Mangling Rule Generator for Dictionary Attacks"
+authors = ["Lucia Sirova <xsirov01@stud.fit.vutbr.cz>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+scikit-learn = "^1.4.2"
+symspellpy = "^6.7.7"
+numpy = "^1.26.4"
+levenshtein = "^0.25.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
