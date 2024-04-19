@@ -33,8 +33,15 @@ Before you begin, ensure you have met the following requirements:
   **Python:** This project requires Python 3.9 or newer. 
   
   **pip:** This project uses pip3 for managing Python packages. 
+
+  **.NET SDK 7.0** Required for compiling and running (M)DSBCAN clustering.
   
-  #### Installation with pip3:
+#### Compiling MDBSCAN
+````
+cd MDBSCAN
+dotnet build -c Release
+````
+#### Installation with pip3:
 ````
  pip3 install -r requirements.txt
 ````
@@ -56,7 +63,7 @@ python3.9 RuleForge.py --wordlist <wordlist_file> --rulefile <rule_file> ( --hac
 ````
 For clustering with DBSCAN:
 ````
-./MDBSCAN/MDBSCAN/bin/Release/net7.0/MDBSCAN <min_pts> <eps> <wordlist_file> | python3.9 RuleForge.py --rulefile <rule_file> --stdin
+./MDBSCAN/MDBSCAN/bin/Release/net7.0/MDBSCAN <eps> <min_pts> <wordlist_file> | python3.9 RuleForge.py --rulefile <rule_file> --stdin
 ````
 For clustering with MDBSCAN:
 ````
