@@ -17,10 +17,32 @@ This repository contains RuleForge, a ML-Based Password-Mangling Rule Generator 
 │   |   ├── 2_target  
 │   └── experiments # Dictionaries used for experiments 
 ├── README.md
+├── poetry.lock
+├── pyproject.toml
+├── requirements.txt
 ├── RuleForge.py
 ├── bench_gen_times.py
 ├── distance_matrix_generator.py
 └── rule-priority-evolution.ipynb
+````
+
+## Requirements
+Before you begin, ensure you have met the following requirements: 
+  **Python:** This project requires Python 3.9 or newer. 
+  **pip:** This project uses pip3 for managing Python packages. 
+  
+  #### Installation with pip3:
+````
+ pip3 install -r requirements.txt
+````
+#### Installation with Python Poetry:
+Install poetry:
+````
+pip3 install poetry
+````
+Install dependencies:
+````
+poetry install
 ````
 
 
