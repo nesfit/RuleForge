@@ -6,20 +6,15 @@ import json
 from operator import itemgetter
 import os
 
-from symspellpy import SymSpell, Verbosity
 from symspellpy.editdistance import EditDistance, DistanceAlgorithm
 
 
 import numpy as np
-from numpy import array
 
 
-from sklearn.cluster import DBSCAN
-from sklearn.cluster import MDBSCAN
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import AffinityPropagation
 
-from termcolor import colored
 
 import Levenshtein as lev
 
@@ -44,7 +39,9 @@ class RuleGenerator:
         self.clusters = {}
         self.cluster_representatives = {}
         self.chunks = [] #chunks of passwords, used for chunking large input file
+        self.chunk_size = 10000 #size of one chunk
         self.chunk_index = 0 
+        
 
         self.rules = [] #generated rules
         self.rules_priority = {}
@@ -128,6 +125,8 @@ class RuleGenerator:
             self.most_frequent = int(args.most_frequent[0]) if args.most_frequent else None
 
             self.rule_priority_file = args.rule_priority[0] if args.rule_priority else None
+
+            
 
             self.DBSCAN = args.dbscan
             self.min_points = args.min_points if self.DBSCAN else None 
@@ -228,11 +227,10 @@ class RuleGenerator:
                 
     #compute number of chunks and create chunks for passwords for clustering
     def chunking(self):
-        CHUNK_SIZE = 100000
-        number_of_chunks = len(self.passwords) / CHUNK_SIZE
+        number_of_chunks = len(self.passwords) / self.chunk_size
         #separating passwords into chunks
-        for x in range(0, len(self.passwords), CHUNK_SIZE):
-            chunk = self.passwords[x:x + CHUNK_SIZE]
+        for x in range(0, len(self.passwords), self.chunk_size):
+            chunk = self.passwords[x:x + self.chunk_size]
             self.chunks.append(chunk)
 
         return number_of_chunks
@@ -266,9 +264,7 @@ class RuleGenerator:
 
     #choose clustering method
     def select_clustering(self):
-        if (self.DBSCAN):
-            self.DBSCAN_clustering()
-        elif (self.HAC):
+        if (self.HAC):
             self.HAC_clustering()
         elif (self.AP):
             self.AP_clustering()
@@ -277,13 +273,6 @@ class RuleGenerator:
              
 
     #clustering with various methods
-    def DBSCAN_clustering(self):
-        self.model = DBSCAN(eps=self.eps,min_samples=self.min_points, metric="precomputed")
-        self.clusters = self.process_model_data()
-        self.compute_cluster_representative()
-        self.get_rules_from_cluster()
-
-
     def HAC_clustering(self):
         self.model = AgglomerativeClustering(n_clusters=None, metric='precomputed',linkage='single', distance_threshold=self.distance_threshold)
         self.clusters = self.process_model_data()
