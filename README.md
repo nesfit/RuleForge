@@ -6,7 +6,7 @@
 
 ML-Based Password-Mangling Rule Generator for Dictionary Attacks.
 
-## Folder structure
+## Repository structure
 ````
 .
 ├── MDBSCAN  
