@@ -28,7 +28,9 @@ This repository contains RuleForge, a ML-Based Password-Mangling Rule Generator 
 
 ## Requirements
 Before you begin, ensure you have met the following requirements: 
+
   **Python:** This project requires Python 3.9 or newer. 
+  
   **pip:** This project uses pip3 for managing Python packages. 
   
   #### Installation with pip3:
