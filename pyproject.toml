@@ -2,7 +2,11 @@
 name = "ruleforge"
 version = "0.1.0"
 description = "ML-Based Password-Mangling Rule Generator for Dictionary Attacks"
-authors = ["Lucia Sirova <xsirov01@stud.fit.vutbr.cz>"]
+authors = [
+    "Radek Hranicky <hranicky@fit.vut.cz>",
+    "Lucia Sirova <xsirov01@stud.fit.vutbr.cz>",
+    "Viktor Rucky <xrucky01@stud.fit.vutbr.cz>"
+]
 license = "MIT"
 readme = "README.md"
 
