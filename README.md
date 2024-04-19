@@ -23,6 +23,7 @@ This repository contains RuleForge, a ML-Based Password-Mangling Rule Generator 
 ├── RuleForge.py
 ├── bench_gen_times.py
 ├── distance_matrix_generator.py
+├── mdbscan_rule_generator.py
 └── rule-priority-evolution.ipynb
 ````
 
@@ -101,6 +102,7 @@ Generate rules from darkweb2017-top10k-m.txt using MDBSCAN clustering method wit
 - `bench_gen_times.py `: Benchmarking rule-generation time for MDBSCAN, DBSCAN, HAC and AP clustering methods
 - `rule-priority-evolution.ipynb`: Rule priority evolution jupyter notebook
 - `distance_matrix_generator.py:` Generates distance matrices from all .txt files in specified directory
+- `mdbscan_rule_generator.py:` Generates password mangling rules. Rule creation algorithm is based on the research paper Li, Shunbin, et al. “Mangling rules generation with density-based clustering for password guessing.”
 
 
 ## Licensing information
