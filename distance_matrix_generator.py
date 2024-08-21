@@ -40,7 +40,7 @@ class MatrixGenerator:
         print("Starting calculation...")
         total_passwords = len(self.passwords)
         # Initialize the distance matrix with zeros
-        self.distance_matrix = np.zeros((total_passwords, total_passwords))
+        self.distance_matrix = np.zeros((total_passwords, total_passwords),dtype=np.int8)
         for i, password_col in enumerate(self.passwords):
             for j in range(i, len(self.passwords)):
                 if i == j:

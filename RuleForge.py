@@ -246,7 +246,7 @@ class RuleGenerator:
 
         total_passwords = len(self.chunks[self.chunk_index])
         # Initialize the distance matrix with zeros
-        self.distance_matrix = np.zeros((total_passwords, total_passwords))
+        self.distance_matrix = np.zeros((total_passwords, total_passwords),dtype=np.int8)
         for i, password_col in enumerate(self.chunks[self.chunk_index]):
             for j in range(i, len(self.chunks[self.chunk_index])):  # Start loop from i to avoid recalculating distances
                 if i == j:
@@ -280,7 +280,7 @@ class RuleGenerator:
         self.get_rules_from_cluster()
 
     def AP_clustering(self):            
-        self.distance_matrix = -1 * self.distance_matrix.astype(np.float64)
+        self.distance_matrix = -1 * self.distance_matrix.astype(np.float16)
         self.model = AffinityPropagation(affinity="precomputed", damping=self.dampning, convergence_iter=self.convergence_iter)
         self.model.fit(self.distance_matrix)
         self.clusters = self.process_model_data()
