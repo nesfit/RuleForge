@@ -349,12 +349,15 @@ class RuleGenerator:
                 continue
             representative = self.cluster_representatives[label] #get representative of given cluster
 
-            cluster_rules = [] 
+            cluster_rules = []
+            cluster_rules_set = set()
             #generate rules from one password from cluster
             for password in passwords_in_cluster:                    
                 word_rules = self.generate_hashcat_rules(representative, password)  #rules from one password
                 #add newly generated rules to rules that belong to this one cluster
-                cluster_rules.extend(rule for rule in word_rules if rule not in cluster_rules)
+                new_rules = set(word_rules) - cluster_rules_set
+                cluster_rules.extend(new_rules)
+                cluster_rules_set.update(new_rules)
                 cluster_rules.extend(word_rules)
                 
             #add newly generated rules from cluster to final ruleset
