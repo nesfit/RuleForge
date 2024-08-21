@@ -289,8 +289,9 @@ class RuleGenerator:
 
     #DBSCAN and MDBSCAN
     def external_clustering(self):
-        self.clusters = json.load(sys.stdin)
-        self.compute_cluster_representative_external()
+        data = json.load(sys.stdin)
+        self.clusters = {key:value['Item1'] for (key,value) in data.items()}
+        self.cluster_representatives = {key:value['Item2'] for (key,value) in data.items()}
         self.get_rules_from_cluster()
 
     #computes clusters based on model model, creates dictionary according to cluster label
@@ -330,6 +331,7 @@ class RuleGenerator:
     
     #computation of cluster representative
     def compute_cluster_representative_external(self):
+        #THIS METHOD IS NOT USED ANYMORE
         for (label,cluster) in self.clusters.items():
             average_distances = []
             for entry in cluster:

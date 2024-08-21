@@ -10,7 +10,7 @@ Mangling Rules Generation With Density-Based Clustering for Password Guessing
 by Shunbin Li, Zhiyu Wang, Ruyun Zhang, Chunming Wu, and Hanguang Luo
 (doi: 10.1109/TDSC.2022.3217002).
 
-This implementation was inspired by the implementation of DBSCAN in Scikit-Learn by Lars Buitinck
+This implementation was partly inspired by the implementation of DBSCAN in Scikit-Learn by Lars Buitinck
 (https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/cluster/_dbscan_inner.pyx).
 */
 
@@ -18,9 +18,12 @@ This implementation was inspired by the implementation of DBSCAN in Scikit-Learn
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
+using SoftWx.Match;
 
 public class Program
 {
+    const int LARGE_CLUSTER_CUT_OFF = 1000;
+
     public static int Main(string[] args)
     {
         //Handling and cleaning user input
@@ -201,18 +204,18 @@ public class Program
         #endif
 
         //Transforming the clustering output to be useful for output
-        var output_dictionary = new Dictionary<int,List<string>>(trueWordCount);
+        var output_dictionary = new ConcurrentDictionary<int,(List<string> members,string? representative)>();
 
         for (int i = -1; i < cluster_index;i++){
-            output_dictionary[i] = new List<string>();
+            output_dictionary[i] = (new List<string>(),null);
         }
 
         foreach(var x in word_to_cluster_dictionary){
-            output_dictionary[x.Value].Add(x.Key);
+            output_dictionary[x.Value].members.Add(x.Key);
         }
 
-        if (output_dictionary[-1].Count == 0){
-            output_dictionary.Remove(-1);
+        if (output_dictionary[-1].members.Count == 0){
+            output_dictionary.TryRemove(-1, out _);
         }
 
         #if PROFILING
@@ -221,8 +224,70 @@ public class Program
         stopwatch.Restart();
         #endif
 
+        // Computing representative
+
+        // Smaller clusters
+        
+        Parallel.ForEach(output_dictionary, cluster => {
+            if (cluster.Value.members.Count > LARGE_CLUSTER_CUT_OFF) return;
+            string? representative_candidate = null;
+            int representative_distance = int.MaxValue;
+            foreach(var possibly_better_candidate in cluster.Value.members){
+                int possibly_better_candidate_distance = 0;
+                foreach(var word in cluster.Value.members){
+                    possibly_better_candidate_distance += Distance.Levenshtein(possibly_better_candidate,word);
+                    if (possibly_better_candidate_distance >= representative_distance) goto EARLY_END_1;
+                }
+                if (possibly_better_candidate_distance < representative_distance){
+                    representative_candidate = possibly_better_candidate;
+                    representative_distance = possibly_better_candidate_distance;
+                }
+                EARLY_END_1:;
+            }
+            output_dictionary[cluster.Key] = (cluster.Value.members,representative_candidate);
+        });
+
+        #if PROFILING
+        stopwatch.Stop();
+        Console.Error.WriteLine("Computing representatives of smaller clusters: "+stopwatch.Elapsed.TotalSeconds.ToString());
+        stopwatch.Restart();
+        #endif
+
+        //Larger clusters
+        
+        foreach(var cluster in output_dictionary){
+            if (cluster.Value.representative != null) continue;
+            Mutex mayUpdateRepresentative = new();
+            string? representative_candidate = null;
+            int representative_distance = int.MaxValue;
+            Parallel.ForEach(cluster.Value.members, possibly_better_candidate => {
+                int possibly_better_candidate_distance = 0;
+                foreach(var word in cluster.Value.members){
+                    possibly_better_candidate_distance += Distance.Levenshtein(possibly_better_candidate,word);
+                    if (possibly_better_candidate_distance >= representative_distance) goto EARLY_END_2;
+                }
+                if (possibly_better_candidate_distance < representative_distance){
+                    mayUpdateRepresentative.WaitOne();
+                    if (possibly_better_candidate_distance < representative_distance){
+                        representative_candidate = possibly_better_candidate;
+                        representative_distance = possibly_better_candidate_distance;
+                    }
+                    mayUpdateRepresentative.ReleaseMutex();
+                }
+                EARLY_END_2:;
+            });
+            output_dictionary[cluster.Key] = (cluster.Value.members,representative_candidate);
+        }
+
+        #if PROFILING
+        stopwatch.Stop();
+        Console.Error.WriteLine("Computing representatives of larger clusters: "+stopwatch.Elapsed.TotalSeconds.ToString());
+        stopwatch.Restart();
+        #endif
+
         //Output 
-        Console.Out.Write(JsonSerializer.Serialize(output_dictionary));
+        var jsonSerializerOptions = new JsonSerializerOptions { IncludeFields = true};
+        Console.Out.Write(JsonSerializer.Serialize(output_dictionary,jsonSerializerOptions));
 
         #if PROFILING
         stopwatch.Stop();
