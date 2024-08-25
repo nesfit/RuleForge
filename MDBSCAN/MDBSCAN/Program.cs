@@ -20,6 +20,8 @@ using System.Diagnostics;
 using System.Text.Json;
 using SoftWx.Match;
 
+namespace MDBSCAN {
+
 public class Program
 {
     const int LARGE_CLUSTER_CUT_OFF = 1000;
@@ -296,4 +298,6 @@ public class Program
 
         return 0;
     }
+}
+
 }

@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MDBSCAN", "MDBSCAN\MDBSCAN.csproj", "{A773AB17-7F87-443F-964B-B60FA8B57364}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RuleGenerator", "RuleGenerator\RuleGenerator.csproj", "{2FB105CD-4833-4944-B01F-AED1D9B8715B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{A773AB17-7F87-443F-964B-B60FA8B57364}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A773AB17-7F87-443F-964B-B60FA8B57364}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A773AB17-7F87-443F-964B-B60FA8B57364}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FB105CD-4833-4944-B01F-AED1D9B8715B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FB105CD-4833-4944-B01F-AED1D9B8715B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FB105CD-4833-4944-B01F-AED1D9B8715B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FB105CD-4833-4944-B01F-AED1D9B8715B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
