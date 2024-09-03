@@ -1,6 +1,7 @@
 ﻿
 using System.Text;
 using SoftWx.Match;
+using System.IO.MemoryMappedFiles;
 
 public class Program
 {
@@ -15,21 +16,8 @@ public class Program
 
         foreach(var arg in args){
             string[] words = File.ReadAllLines(arg);
-            int count = words.Length;
-            sbyte[,] distanceMatrix = new sbyte[count,count];
-            Parallel.For(0, count, i => {
-                for(int j = i+1; j < count; j++){
-                    distanceMatrix[i,j] = (sbyte)Distance.Levenshtein(words[i],words[j]);
-                }
-            });
-
-            Parallel.For(0, count, i => {
-                for(int j = 0; j < i; j++){
-                    distanceMatrix[i,j] = distanceMatrix[j,i];
-                }
-            });
+            long count = words.Length;
             
-            var matrixOutputFile = File.Open(Path.Combine(Path.GetDirectoryName(arg),Path.GetFileName(arg)+"_distance_matrix.npy"),FileMode.Create);
             string fileHeader2 = string.Format("{{'descr': '|i1', 'fortran_order': False, 'shape': ({0}, {1}), }}", count, count);
             var headerOvershoot = (11 + fileHeader2.Length) % 64;
             if (headerOvershoot != 0){
@@ -50,15 +38,28 @@ public class Program
                 headerLengthLowerByte,
                 headerLengthHigherByte
                 };
-            matrixOutputFile.Write(fileHeader1);
-            matrixOutputFile.Write(Encoding.ASCII.GetBytes(fileHeader2));
-            unsafe {
-                fixed (sbyte* p = distanceMatrix)
-                {
-                    var span = new Span<byte>((byte*)p,distanceMatrix.Length);
-                    matrixOutputFile.Write(span);
-                }
+            
+            var outFile = MemoryMappedFile.CreateFromFile(Path.Combine(Path.GetDirectoryName(arg),Path.GetFileName(arg)+"_distance_matrix.npy"),FileMode.CreateNew,null,count*count+fileHeader1.Length+fileHeader2.Length);
+            var accessor = outFile.CreateViewAccessor();
+            long write_offset = 0;
+            for (int i = 0;i < fileHeader1.Length;i++,write_offset++){
+                accessor.Write(write_offset,fileHeader1[i]);
             }
+            for (int i = 0;i < fileHeader2.Length;i++,write_offset++){
+                accessor.Write(write_offset,fileHeader2[i]);
+            }
+            
+            Parallel.For(0, count, i => {
+                for(int j = i+1; j < count; j++){
+                    accessor.Write(write_offset + i*count + j,(sbyte)Distance.Levenshtein(words[i],words[j]));
+                }
+            });
+
+            Parallel.For(0, count, i => {
+                for(int j = 0; j < i; j++){
+                    accessor.Write(write_offset + i*count + j,accessor.ReadByte(write_offset + j*count + i));
+                }
+            });
         }
         return 0;
     }
