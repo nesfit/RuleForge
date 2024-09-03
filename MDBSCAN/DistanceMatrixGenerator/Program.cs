@@ -1,11 +1,13 @@
 ﻿
+#define PROFILING
 using System.Text;
 using SoftWx.Match;
 using System.IO.MemoryMappedFiles;
+using System.Diagnostics;
 
 public class Program
 {
-    public static int Main(string[] args)
+    unsafe public static int Main(string[] args)
     {
         foreach(var arg in args){
             if (!File.Exists(arg)){
@@ -15,7 +17,20 @@ public class Program
         }
 
         foreach(var arg in args){
+            
+            #if PROFILING
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            #endif
+
             string[] words = File.ReadAllLines(arg);
+            
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Reading file: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+
             long count = words.Length;
             
             string fileHeader2 = string.Format("{{'descr': '|i1', 'fortran_order': False, 'shape': ({0}, {1}), }}", count, count);
@@ -39,27 +54,61 @@ public class Program
                 headerLengthHigherByte
                 };
             
-            var outFile = MemoryMappedFile.CreateFromFile(Path.Combine(Path.GetDirectoryName(arg),Path.GetFileName(arg)+"_distance_matrix.npy"),FileMode.CreateNew,null,count*count+fileHeader1.Length+fileHeader2.Length);
-            var accessor = outFile.CreateViewAccessor();
+            var outFile = MemoryMappedFile.CreateFromFile(Path.Combine(Path.GetDirectoryName(arg),Path.GetFileName(arg)+"_distance_matrix.npy"),FileMode.CreateNew,null,count*count+fileHeader1.Length+fileHeader2.Length,MemoryMappedFileAccess.CopyOnWrite);
+            var accessor = outFile.CreateViewAccessor(0,count*count+fileHeader1.Length+fileHeader2.Length,MemoryMappedFileAccess.CopyOnWrite);
+            byte* byte_peek = null;
+            sbyte* sbyte_peek = null;
+            accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref byte_peek);
+            sbyte_peek = (sbyte*)byte_peek;
             long write_offset = 0;
             for (int i = 0;i < fileHeader1.Length;i++,write_offset++){
-                accessor.Write(write_offset,fileHeader1[i]);
+                byte_peek[write_offset] = fileHeader1[i];
             }
             for (int i = 0;i < fileHeader2.Length;i++,write_offset++){
-                accessor.Write(write_offset,fileHeader2[i]);
+                byte_peek[write_offset] = (byte)fileHeader2[i];
             }
             
-            Parallel.For(0, count, i => {
-                for(int j = i+1; j < count; j++){
-                    accessor.Write(write_offset + i*count + j,(sbyte)Distance.Levenshtein(words[i],words[j]));
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Opening output file and writing header: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+
+            Parallel.For(0, count-1, i => {
+                sbyte[] line = new sbyte[count - (i+1)];
+                long k = 0;
+                for(long j = i+1; j < count; j++,k++){
+                    line[k] = (sbyte)Distance.Levenshtein(words[i],words[j]);
+                }
+                //accessor.WriteArray<sbyte>(write_offset+i*count+i+1,line,0,line.Length);
+                k = 0;
+                for(long j = i+1; j < count; j++,k++){
+                    sbyte_peek[write_offset+i*count+j] = line[k];
                 }
             });
 
-            Parallel.For(0, count, i => {
-                for(int j = 0; j < i; j++){
-                    accessor.Write(write_offset + i*count + j,accessor.ReadByte(write_offset + j*count + i));
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Computing half of distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+
+            Parallel.For(1, count, i => {
+                byte[] line = new byte[i];
+                for(long j = 0; j < i; j++){
+                    line[j] = accessor.ReadByte(write_offset + j*count + i);
                 }
+                for(long j = 0; j < i; j++){
+                    byte_peek[write_offset + i*count + j] = line[j];
+                }
+                //accessor.WriteArray<byte>(write_offset + i*count,line,0,line.Length);
             });
+
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Mirroring distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
         }
         return 0;
     }
