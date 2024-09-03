@@ -1,7 +1,8 @@
 ﻿
+//#define PROFILING
+using System.Diagnostics;
 using System.Text;
 using SoftWx.Match;
-
 public class Program
 {
     public static int Main(string[] args)
@@ -14,7 +15,19 @@ public class Program
         }
 
         foreach(var arg in args){
+            #if PROFILING
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            #endif
+            
             string[] words = File.ReadAllLines(arg);
+            
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Reading input file: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+            
             int count = words.Length;
             sbyte[,] distanceMatrix = new sbyte[count,count];
             Parallel.For(0, count, i => {
@@ -23,12 +36,24 @@ public class Program
                 }
             });
 
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Calculating half the distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+
             Parallel.For(0, count, i => {
                 for(int j = 0; j < i; j++){
                     distanceMatrix[i,j] = distanceMatrix[j,i];
                 }
             });
             
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Mirroring the distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+
             var matrixOutputFile = File.Open(Path.Combine(Path.GetDirectoryName(arg),Path.GetFileName(arg)+"_distance_matrix.npy"),FileMode.Create);
             string fileHeader2 = string.Format("{{'descr': '|i1', 'fortran_order': False, 'shape': ({0}, {1}), }}", count, count);
             var headerOvershoot = (11 + fileHeader2.Length) % 64;
@@ -59,6 +84,11 @@ public class Program
                     matrixOutputFile.Write(span);
                 }
             }
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Writing the distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
         }
         return 0;
     }
