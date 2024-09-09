@@ -10,6 +10,7 @@ from symspellpy.editdistance import EditDistance, DistanceAlgorithm
 
 
 import numpy as np
+import difflib
 
 
 from sklearn.cluster import AgglomerativeClustering
@@ -72,6 +73,18 @@ class RuleGenerator:
             "}" : lambda x: x[-1]+x[:-1],
 
         }
+        self.leet_to_alpha = {
+            '4': 'a',
+            '3': 'e',
+            '1': 'i',
+            '0': 'o',
+            '7': 't',
+            '5': 's',
+            '$': 's',
+            '@': 'a',
+            '8': 'b'
+        }
+    
     
 
     #parse input arguments
@@ -112,6 +125,16 @@ class RuleGenerator:
             parser.add_argument('--remove_outliers',action='store_true') #do not use outliers for rule generation
             parser.add_argument('--stdin',action='store_true')
 
+            parser.add_argument('--verbose',action='store_true', help='Prints out information about rule generating process.') #verbose mode
+
+
+            parser.add_argument(
+                "--representative",
+                choices=["combo", "levenshtein", "substring"],
+                required=True, 
+                help="Choose the method for selecting a representative: combo, levenshtein, or substring"
+            )
+
             args = parser.parse_args()
 
             if args.wordlist:
@@ -148,6 +171,10 @@ class RuleGenerator:
             self.dm_precomputed = args.distance_matrix_precomputed
 
             self.STDIN = args.stdin
+
+            self.representative = args.representative
+            self.verbose = args.verbose
+
 
             if not (self.DBSCAN or self.HAC or self.AP or self.MDBSCAN or self.STDIN):
                 print("No clustering method specified", file=sys.stderr)
@@ -292,7 +319,23 @@ class RuleGenerator:
         data = json.load(sys.stdin)
         self.clusters = {key:value['Item1'] for (key,value) in data.items()}
         self.cluster_representatives = {key:value['Item2'] for (key,value) in data.items()}
-        self.get_rules_from_cluster()
+        if (self.representative == "levenshtein"):
+            self.get_rules_from_cluster_classic()
+        elif (self.representative == "combo"):          
+            self.get_rules_from_cluster_classic()
+            self.get_rules_from_cluster_substr()
+
+        elif (self.representative == "substring"):
+            self.get_rules_from_cluster_substr()
+
+
+        #save rules to .rule output file
+        if (self.most_frequent == None):
+            self.most_frequent = len(self.rules)
+ 
+        self.save_frequent_rules_to_file()
+        
+        
 
     #computes clusters based on model model, creates dictionary according to cluster label
     def process_model_data(self):
@@ -342,13 +385,75 @@ class RuleGenerator:
             representative, _ = min(enumerate(average_distances), key=itemgetter(1))
             self.cluster_representatives[label] = cluster[representative]
 
-    #get rules from each cluster, optionally dont generate rules from outlier clusters
     def get_rules_from_cluster(self):
+        if (self.representative == "substring"):
+            self.get_rules_from_cluster_substr()
+            
+
+        elif (self.representative == "levenshtein"):
+            self.get_rules_from_cluster_classic()
+
+        elif(self.representative == "combo"):
+            self.get_rules_from_cluster_substr()
+            self.get_rules_from_cluster_classic()
+
+        #save rules to .rule output file
+        if (self.most_frequent == None):
+            self.most_frequent = len(self.rules)
+ 
+        self.save_frequent_rules_to_file()
+
+    def remove_leetspeak(self,password):
+        return ''.join(self.leet_to_alpha.get(char, char) for char in password)
+
+
+    #get rules from each cluster, optionally dont generate rules from outlier clusters
+    #SUBSTRING method: the "representative" is the longest common substring
+    def get_rules_from_cluster_substr(self):
+        for label, passwords_in_cluster in self.clusters.items():
+            if self.remove_outliers and label == '-1' and self.STDIN:
+                continue
+
+            
+            passwords_in_cluster_lower = []
+            for i in range(len(passwords_in_cluster)):
+                password = passwords_in_cluster[i].lower()
+                password = self.remove_leetspeak(password)
+                passwords_in_cluster_lower.append(password)
+
+            representative = self.find_longest_common_substring(passwords_in_cluster_lower)
+            
+            if (self.verbose):
+                print(f"Cluster {label} (Representative: {representative}): {', '.join(passwords_in_cluster)}")
+            
+
+            if (representative == ""):
+                continue
+            
+            cluster_rules = [] 
+            cluster_rules_set = set()
+            #generate rules from one password from cluster
+            for password in passwords_in_cluster:
+                word_rules = self.generate_hashcat_rules(representative, password) #rules from one password
+                #add newly generated rules to rules that belong to this one cluster
+                new_rules = set(word_rules) - cluster_rules_set
+                cluster_rules.extend(new_rules)
+                cluster_rules_set.update(new_rules)
+                cluster_rules.extend(word_rules)
+                
+            #add newly generated rules from cluster to final ruleset
+            self.rules.extend(cluster_rules)
+            if (self.verbose):
+                print(word_rules)
+
+    #get rules from each cluster, optionally dont generate rules from outlier clusters
+    def get_rules_from_cluster_classic(self):
         for label, passwords_in_cluster in self.clusters.items():
             if self.remove_outliers and label == -1:
                 continue
             representative = self.cluster_representatives[label] #get representative of given cluster
-
+            if (self.verbose):
+                print(f"Cluster {label} (Representative: {representative}): {', '.join(passwords_in_cluster)}")
             cluster_rules = []
             cluster_rules_set = set()
             #generate rules from one password from cluster
@@ -362,12 +467,27 @@ class RuleGenerator:
                 
             #add newly generated rules from cluster to final ruleset
             self.rules.extend(cluster_rules)
+
+            if (self.verbose):
+                print(word_rules)
             
-        #save rules to .rule output file
-        if (self.most_frequent == None):
-            self.most_frequent = len(self.rules)
-        self.save_frequent_rules_to_file() 
-            
+    def find_longest_common_substring(self,words):
+        s = words[0]
+        #function to find the longest match
+        def longest_match(s, words):
+            sm = difflib.SequenceMatcher(None, s, words[0])
+            longest = ''
+            for i in range(len(s)):
+                for j in range(i + 1, len(s) + 1):
+                    sub = s[i:j]
+                    if all(sub in word for word in words):
+                        if len(sub) > len(longest):
+                            longest = sub
+            return longest
+    
+    
+        common_substring = longest_match(s, words)
+        return common_substring    
 
     #save rules to .rule output ruleset, final ruleset is sorted according to rule frequency, optionally top n rules are selected
     def save_frequent_rules_to_file(self):
