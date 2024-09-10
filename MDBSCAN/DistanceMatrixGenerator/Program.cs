@@ -78,10 +78,16 @@ public class Program
             matrixOutputFile.Write(fileHeader1);
             matrixOutputFile.Write(Encoding.ASCII.GetBytes(fileHeader2));
             unsafe {
-                fixed (sbyte* p = distanceMatrix)
+                fixed (sbyte* p = &distanceMatrix[0,0])
                 {
-                    var span = new Span<byte>((byte*)p,distanceMatrix.Length);
-                    matrixOutputFile.Write(span);
+                    byte* current_pointer = (byte*)p;
+                    byte* end_pointer = current_pointer + distanceMatrix.LongLength;
+                    while(current_pointer < end_pointer){
+                        int stride = end_pointer - current_pointer > int.MaxValue ? int.MaxValue : (int)(end_pointer - current_pointer);
+                        var span = new ReadOnlySpan<byte>(current_pointer,stride);
+                        matrixOutputFile.Write(span);
+                        current_pointer += stride;
+                    }
                 }
             }
             #if PROFILING
