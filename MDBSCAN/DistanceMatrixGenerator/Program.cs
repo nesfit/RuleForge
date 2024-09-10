@@ -54,7 +54,7 @@ public class Program
             stopwatch.Restart();
             #endif
 
-            var matrixOutputFile = File.Open(Path.Combine(Path.GetDirectoryName(arg),Path.GetFileName(arg)+"_distance_matrix.npy"),FileMode.Create);
+            var matrixOutputFile = File.Open(Path.Combine(Path.GetDirectoryName(arg),Path.GetFileNameWithoutExtension(arg)+"_distance_matrix.npy"),FileMode.Create);
             string fileHeader2 = string.Format("{{'descr': '|i1', 'fortran_order': False, 'shape': ({0}, {1}), }}", count, count);
             var headerOvershoot = (11 + fileHeader2.Length) % 64;
             if (headerOvershoot != 0){
