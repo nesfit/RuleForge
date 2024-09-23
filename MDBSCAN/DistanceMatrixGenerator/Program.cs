@@ -1,12 +1,18 @@
 ﻿
 //#define PROFILING
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using SoftWx.Match;
 public class Program
 {
-    public static int Main(string[] args)
+    unsafe public static int Main(string[] args)
     {
+        if (sizeof(nuint) < 8){
+            Console.Error.WriteLine("Distance matrix generator cannot run on 32-bit systems.");
+            return 2;
+        }
+        
         foreach(var arg in args){
             if (!File.Exists(arg)){
                 Console.Error.WriteLine("File \""+arg+"\" does not exist.");
@@ -28,11 +34,11 @@ public class Program
             stopwatch.Restart();
             #endif
             
-            int count = words.Length;
-            sbyte[,] distanceMatrix = new sbyte[count,count];
+            long count = words.LongLength;
+            sbyte* distanceMatrix = (sbyte*)NativeMemory.Alloc((nuint)count*(nuint)count, sizeof(sbyte));
             Parallel.For(0, count, i => {
-                for(int j = i+1; j < count; j++){
-                    distanceMatrix[i,j] = (sbyte)Distance.Levenshtein(words[i],words[j]);
+                for(long j = i+1; j < count; j++){
+                    distanceMatrix[i*count+j] = (sbyte)Distance.Levenshtein(words[i],words[j]);
                 }
             });
 
@@ -43,14 +49,24 @@ public class Program
             #endif
 
             Parallel.For(0, count, i => {
-                for(int j = 0; j < i; j++){
-                    distanceMatrix[i,j] = distanceMatrix[j,i];
+                for(long j = 0; j < i; j++){
+                    distanceMatrix[i*count+j] = distanceMatrix[j*count+i];
                 }
             });
             
             #if PROFILING
             stopwatch.Stop();
             Console.Error.WriteLine("Mirroring the distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+
+            for (long i = 0; i < count; i++){
+                distanceMatrix[i*count + i] = (sbyte)0;
+            }
+
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Zeroing the distance matrix diagonal: "+stopwatch.Elapsed.TotalSeconds.ToString());
             stopwatch.Restart();
             #endif
 
@@ -77,22 +93,28 @@ public class Program
                 };
             matrixOutputFile.Write(fileHeader1);
             matrixOutputFile.Write(Encoding.ASCII.GetBytes(fileHeader2));
-            unsafe {
-                fixed (sbyte* p = &distanceMatrix[0,0])
-                {
-                    byte* current_pointer = (byte*)p;
-                    byte* end_pointer = current_pointer + distanceMatrix.LongLength;
-                    while(current_pointer < end_pointer){
-                        int stride = end_pointer - current_pointer > int.MaxValue ? int.MaxValue : (int)(end_pointer - current_pointer);
-                        var span = new ReadOnlySpan<byte>(current_pointer,stride);
-                        matrixOutputFile.Write(span);
-                        current_pointer += stride;
-                    }
-                }
+
+            byte* current_pointer = (byte*)distanceMatrix;
+            byte* end_pointer = current_pointer + count*count;
+            while(current_pointer < end_pointer){
+                int stride = end_pointer - current_pointer > int.MaxValue ? int.MaxValue : (int)(end_pointer - current_pointer);
+                var span = new ReadOnlySpan<byte>(current_pointer,stride);
+                matrixOutputFile.Write(span);
+                current_pointer += stride;
             }
+
             #if PROFILING
             stopwatch.Stop();
             Console.Error.WriteLine("Writing the distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
+            stopwatch.Restart();
+            #endif
+
+            NativeMemory.Free(distanceMatrix);
+            matrixOutputFile.Close();
+
+            #if PROFILING
+            stopwatch.Stop();
+            Console.Error.WriteLine("Closing file (probably also flushing) and deallocating distance matrix: "+stopwatch.Elapsed.TotalSeconds.ToString());
             stopwatch.Restart();
             #endif
         }
