@@ -15,7 +15,9 @@ This repository contains RuleForge, a ML-Based Password-Mangling Rule Generator 
 │   |   ├── 0_training 
 │   |   ├── 1_attack 
 │   |   ├── 2_target  
+    ├── recovered # Passwords recovered with RuleForge rules in experiment 4.4
 │   └── experiments # Dictionaries used for experiments 
+├── rules # Rules generated with RuleForge in experiment 4.4
 ├── README.md
 ├── poetry.lock
 ├── pyproject.toml
@@ -85,6 +87,7 @@ Generate rules from darkweb2017-top10k-m.txt using MDBSCAN clustering method wit
 ##### Required Arguments:
 - `--wordlist <wordlist_file>`: Path to the wordlist file. This is the input wordlist for rule generation.
 - `--rulefile <rule_file>`: Path to the output file where the generated rules will be saved.
+- `--representative (combo | levenshtein | substring)`: Method for selecting a representative.
 
 ##### Optional Arguments:
 - `--rule_priority <rule_priority_file>`: Path to the priority rule file, for sorting or prioritizing rules.
